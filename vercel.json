@@ -2,12 +2,8 @@
     "version": 2,
     "builds": [
       {
-        "src": "src/pages/api/signal.js",
+        "src": "src/app/api/signal.js",
         "use": "@vercel/node"
-      },
-      {
-        "src": "src/pages/index.js",
-        "use": "@vercel/next"
       }
     ],
     "routes": [
