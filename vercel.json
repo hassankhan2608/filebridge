@@ -1,0 +1,20 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "src/pages/api/signal.js",
+        "use": "@vercel/node"
+      },
+      {
+        "src": "src/pages/index.js",
+        "use": "@vercel/next"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/signal",
+        "dest": "/api/signal.js"
+      }
+    ]
+  }
+  
