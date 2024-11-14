@@ -5,16 +5,17 @@ import * as connectionAction from "./store/connection/connectionActions";
 import { DataType, PeerConnection } from "./helpers/peer";
 import { useAsyncState } from "./helpers/hooks";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { FileUpload } from "@/components/file-upload";
 import { ConnectionList } from "@/components/connection-list";
+import { ShareOptions } from "@/components/share-options";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { Copy, Github, RotateCw, Loader2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Github, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Separator } from "@/components/ui/separator";
 
 const App: React.FC = () => {
   const peer = useAppSelector((state) => state.peer);
@@ -23,8 +24,16 @@ const App: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connectId = params.get('connect');
+    
     if (!peer.started && !peer.loading) {
-      dispatch(startPeer());
+      dispatch(startPeer()).then(() => {
+        if (connectId) {
+          dispatch(connectionAction.connectPeer(connectId));
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      });
     }
   }, []);
 
@@ -48,16 +57,6 @@ const App: React.FC = () => {
 
   const [fileList, setFileList] = useAsyncState([] as File[]);
   const [sendLoading, setSendLoading] = useAsyncState(false);
-  const [pingAlert, setPingAlert] = useAsyncState({ show: false, from: '' });
-
-  useEffect(() => {
-    if (pingAlert.show) {
-      const timer = setTimeout(() => {
-        setPingAlert({ show: false, from: '' });
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [pingAlert.show]);
 
   const handleUpload = async () => {
     if (fileList.length === 0) {
@@ -92,10 +91,11 @@ const App: React.FC = () => {
       toast({
         title: "Success",
         description: `${fileList.length} file${fileList.length === 1 ? '' : 's'} sent successfully`,
+        className: "bg-[#044cab] text-white",
       });
     } catch (err) {
       await setSendLoading(false);
-      console.log(err);
+      console.error(err);
       toast({
         variant: "destructive",
         title: "Error",
@@ -113,9 +113,10 @@ const App: React.FC = () => {
       toast({
         title: "Ping sent",
         description: "Notification sent to the user",
+        className: "bg-[#044cab] text-white",
       });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       toast({
         variant: "destructive",
         title: "Error",
@@ -129,214 +130,116 @@ const App: React.FC = () => {
     await setFileList(newFiles);
   };
 
-  useEffect(() => {
-    const handlePingReceived = (peerId: string) => {
-      setPingAlert({ show: true, from: peerId });
-      toast({
-        title: "Ping Received!",
-        description: `User ${peerId} is trying to get your attention`,
-        variant: "default",
-        className: "bg-primary text-primary-foreground",
-      });
-    };
-
-    PeerConnection.onPingReceived(handlePingReceived);
-
-    return () => {
-      PeerConnection.removePingListener(handlePingReceived);
-    };
-  }, []);
-
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-        <AnimatePresence>
-          {pingAlert.show && (
-            <motion.div
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-md"
-            >
-              <Card className="border-primary bg-primary text-primary-foreground">
-                <CardContent className="p-4 text-center">
-                  <h3 className="text-xl font-semibold mb-2">Incoming Ping!</h3>
-                  <p className="text-lg opacity-90">
-                    User {pingAlert.from} is trying to get your attention
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-16 items-center justify-between">
-            <motion.a
-              href="https://github.com/yourusername/filebridge"
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/60 dark:bg-gray-950/80 dark:border-gray-800">
+        <nav className="container flex h-16 items-center justify-between">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-4"
+          >
+            <a
+              href="https://github.com/hassankhan2608/filebridge.git"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
+              className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <Github className="w-5 h-5" />
-            </motion.a>
-            <motion.h1
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 text-transparent bg-clip-text"
-            >
-              FILE BRIDGE
-            </motion.h1>
-            <ThemeToggle />
-          </div>
-        </header>
+            </a>
+            <Separator orientation="vertical" className="h-6" />
+            <h1 className="text-xl font-bold text-[#044cab] dark:text-blue-400">
+              FileBridge
+            </h1>
+          </motion.div>
+          <ThemeToggle />
+        </nav>
+      </header>
 
-        <main className="container py-6 md:py-8">
-          <div className="max-w-6xl mx-auto space-y-6">
+      <main className="container py-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Your Connection</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <ShareOptions peerId={peer.id || ''} onReset={handleResetSession} />
+                
+                <div className="grid gap-4">
+                  <Input
+                    placeholder="Enter peer ID to connect"
+                    onChange={(e) =>
+                      dispatch(connectionAction.changeConnectionInput(e.target.value))
+                    }
+                  />
+                  <Button
+                    onClick={handleConnectOtherPeer}
+                    disabled={connection.loading}
+                    className="w-full bg-[#044cab] hover:bg-[#033b8a] text-white h-11"
+                  >
+                    {connection.loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      'Connect to Peer'
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <div className="grid lg:grid-cols-2 gap-8">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
             >
-              <Card className="backdrop-blur-sm bg-card/50">
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 p-4 bg-background rounded-xl">
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <p className="text-sm font-medium text-muted-foreground">Your ID</p>
-                        <div className="flex items-center gap-2">
-                          {peer.loading ? (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>Generating...</span>
-                            </div>
-                          ) : (
-                            <code className="text-base md:text-lg font-mono text-primary break-all">
-                              {peer.id}
-                            </code>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={async () => {
-                                await navigator.clipboard.writeText(peer.id || "");
-                                toast({
-                                  title: "Copied!",
-                                  description: "ID copied to clipboard",
-                                });
-                              }}
-                            >
-                              <Copy className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Copy ID</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={handleResetSession}
-                              disabled={peer.loading}
-                            >
-                              <RotateCw className="w-4 h-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Reset Session</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-2">
-                      <Input
-                        placeholder="Enter peer ID to connect"
-                        className="flex-1 bg-background"
-                        onChange={(e) =>
-                          dispatch(connectionAction.changeConnectionInput(e.target.value))
-                        }
-                      />
-                      <Button
-                        onClick={handleConnectOtherPeer}
-                        disabled={connection.loading}
-                        className="md:w-32"
-                      >
-                        {connection.loading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Connecting
-                          </>
-                        ) : (
-                          'Connect'
-                        )}
-                      </Button>
-                    </div>
-                  </div>
+              <Card className="h-[600px]">
+                <CardHeader>
+                  <CardTitle>Active Connections</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ConnectionList
+                    connections={connection.list}
+                    selectedId={connection.selectedId}
+                    onSelect={(id) => dispatch(connectionAction.selectItem(id))}
+                    onPing={handlePing}
+                  />
                 </CardContent>
               </Card>
             </motion.div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                <Card className="backdrop-blur-sm bg-card/50 h-[600px]">
-                  <CardContent className="p-6 h-full">
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold">Active Connections</h2>
-                        <div className="text-sm text-muted-foreground">
-                          {connection.list.length} connected
-                        </div>
-                      </div>
-                      <div className="flex-1 min-h-0">
-                        <ConnectionList
-                          connections={connection.list}
-                          selectedId={connection.selectedId}
-                          onSelect={(id) => dispatch(connectionAction.selectItem(id))}
-                          onPing={handlePing}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-              >
-                <Card className="backdrop-blur-sm bg-card/50 h-[600px]">
-                  <CardContent className="p-6 h-full">
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-semibold">Send Files</h2>
-                      </div>
-                      <div className="flex-1 min-h-0">
-                        <FileUpload
-                          files={fileList}
-                          onFilesChange={setFileList}
-                          loading={sendLoading}
-                          onUpload={handleUpload}
-                          onRemoveFile={handleRemoveFile}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <Card className="h-[600px]">
+                <CardHeader>
+                  <CardTitle>File Transfer</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <FileUpload
+                    files={fileList}
+                    onFilesChange={setFileList}
+                    loading={sendLoading}
+                    onUpload={handleUpload}
+                    onRemoveFile={handleRemoveFile}
+                  />
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
-        </main>
-        <Toaster />
-      </div>
-    </TooltipProvider>
+        </div>
+      </main>
+      <Toaster />
+    </div>
   );
 };
 
